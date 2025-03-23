@@ -1,78 +1,60 @@
 import streamlit as st
-import pickle 
 import requests
 import streamlit.components.v1 as components
 
-def fetch_poster(movie_id):
-    url = "https://api.themoviedb.org/3/movie/{}?api_key=d5bbfef02cf91c2b3c8dabad33c3bb0b&language=en-US".format(movie_id)
-    data= requests.get(url)
-    data = data.json()
-    poster_path= data['poster_path']
-    full_path = "https://image.tmdb.org/t/p/w500/" + poster_path
-
-    return full_path
-
-
-def  recommender(movie):
-    movie_index = movies[movies['title']==movie].index[0]
-    distance = sorted(list(enumerate(similarity[movie_index])), reverse= True, key=lambda x: x[1])
-    recommended_movies = []
-    recommened_poster = []
-    for i in distance[1:6]:
-        movie_id = movies.iloc[i[0]].id
-        recommended_movies.append(movies.iloc[i[0]].title)
-        recommened_poster.append(fetch_poster(movie_id))
-    return recommended_movies, recommened_poster
-
-
-movies = pickle.load(open('engines/movies_list.pkl', 'rb'))
-similarity = pickle.load(open('engines/similarity.pkl', 'rb'))
-movies_list = movies['title'].values
+import pickle
 
 st.header('Movie Recommender System')
 
+# API URL
+FASTAPI_URL = "http://127.0.0.1:8000/recommend/"  # Change this when hosting
 
+# Fetch movie list (from pickle)
+movies = pickle.load(open('engines/movies_list.pkl', 'rb'))
+movies_list = movies['title'].values
 
-
+# Movie carousel
 imageCarouselComponent = components.declare_component("image-carousel-component", path="frontend/public")
+imageCarouselComponent(imageUrls=[
+    "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
+    "https://image.tmdb.org/t/p/w500/6ELJEzQJ3Y45HczvreC3dg0GV5R.jpg",
+    "https://image.tmdb.org/t/p/w500/9O7gLzmreU0nGkIB6K3BsJbzvNv.jpg",
+    "https://image.tmdb.org/t/p/w500/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg",
+    "https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg",
+    "https://image.tmdb.org/t/p/w500/5KCVkau1HEl7ZzfPsKAPM0sMiKc.jpg",
+    "https://image.tmdb.org/t/p/w500/3iYQTLGoy7QnjcUYRJy4YrAgGvp.jpg",
+    "https://image.tmdb.org/t/p/w500/4q2NNj4S5dG2RLF9CpXsej7yXl.jpg"
+], height=200)
 
-imageUrls = [
-    fetch_poster(1632),
-    fetch_poster(299536),
-    fetch_poster(17455),
-    fetch_poster(2830),
-    fetch_poster(429422),
-    fetch_poster(9722),
-    fetch_poster(13972),
-    fetch_poster(240),
-    fetch_poster(155),
-    fetch_poster(598),
-    fetch_poster(914),
-    fetch_poster(255709),
-    fetch_poster(572154)
-   
-    ]
-imageCarouselComponent(imageUrls=imageUrls, height=200)
+# Movie selection dropdown
 select_value = st.selectbox('Select a movie', movies_list)
 
-
-
 if st.button("Show Recommendation"):
-    movies_names, movie_poster = recommender(select_value)
+    response = requests.get(FASTAPI_URL, params={"movie": select_value})
+    
+    if response.status_code == 200:
+        data = response.json()
+        if "error" in data:
+            st.error("Movie not found!")
+        else:
+            movies_names = data["movies"]
+            movie_poster = data["posters"]
 
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        st.text(movies_names[0])
-        st.image(movie_poster[0])
-    with col2:
-        st.text(movies_names[1])
-        st.image(movie_poster[1])
-    with col3:
-        st.text(movies_names[2])
-        st.image(movie_poster[2])
-    with col4:
-        st.text(movies_names[3])
-        st.image(movie_poster[3])
-    with col5:
-        st.text(movies_names[4])
-        st.image(movie_poster[4])
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                st.text(movies_names[0])
+                st.image(movie_poster[0])
+            with col2:
+                st.text(movies_names[1])
+                st.image(movie_poster[1])
+            with col3:
+                st.text(movies_names[2])
+                st.image(movie_poster[2])
+            with col4:
+                st.text(movies_names[3])
+                st.image(movie_poster[3])
+            with col5:
+                st.text(movies_names[4])
+                st.image(movie_poster[4])
+    else:
+        st.error("Error fetching recommendations!")
